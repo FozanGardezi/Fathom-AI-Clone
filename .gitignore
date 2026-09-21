@@ -1,0 +1,15 @@
+# Raw hook payload dumps and per-session bookkeeping for the capture hook.
+# The captured logs themselves live in .agent-logs/ and ARE committed.
+.claude/hook-debug/
+.claude/hook-state/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.DS_Store
