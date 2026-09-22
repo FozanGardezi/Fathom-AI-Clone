@@ -3,6 +3,11 @@
 .claude/hook-debug/
 .claude/hook-state/
 
+# Environment files - only .env.example is tracked
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.pyc
@@ -13,3 +18,8 @@ venv/
 node_modules/
 dist/
 .DS_Store
+
+# Django
+staticfiles/
+media/
+*.sqlite3

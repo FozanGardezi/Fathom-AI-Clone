@@ -1,0 +1,40 @@
+# Build context hygiene: everything here is excluded from ALL image builds.
+# A smaller context means faster builds and no accidental secret baking.
+
+.git
+.gitignore
+.github
+
+# Never ship real environment files - only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output (reinstalled/rebuilt inside the image)
+**/node_modules
+**/dist
+**/build
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Local databases, media and logs
+**/*.sqlite3
+**/media
+**/staticfiles
+**/logs
+**/*.log
+
+# Agent capture logs and tooling - part of the repo, irrelevant to the image
+.agent-logs
+.claude
+CAPTURE-TEST.md
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
