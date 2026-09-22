@@ -157,9 +157,11 @@ CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6380/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=DEBUG)
 
+LOG_LEVEL = env("LOG_LEVEL", default="INFO").upper()
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
 }
