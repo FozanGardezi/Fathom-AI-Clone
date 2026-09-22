@@ -7,7 +7,7 @@
     "backend": {
       "root": "backend",
       "framework": "django",
-      "entrypoint": "backend/config/wsgi.py"
+      "entrypoint": "config/wsgi.py"
     }
     },
     "rewrites": [
