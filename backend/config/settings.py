@@ -8,6 +8,8 @@ from pathlib import Path
 
 import environ
 
+from .database import build_databases
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
@@ -86,13 +88,10 @@ TEMPLATES = [
 
 # ------------------------------------------------------------------- database
 
-DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default="postgres://fathom:fathom@localhost:5433/fathom",
-    )
-}
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+# Built in config/database.py, which reads DATABASE_URL or the POSTGRES_*
+# group and picks SSL, connection reuse and timeout defaults from where the
+# database actually is. See that module for what each variable does.
+DATABASES = build_databases(env, debug=DEBUG)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
