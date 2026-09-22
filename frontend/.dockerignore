@@ -1,0 +1,13 @@
+# Frontend build context. node_modules is excluded so `npm ci` runs inside the
+# image against the lockfile rather than copying a host-built tree (which may
+# contain the wrong platform's native binaries).
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.git
+.DS_Store
+*.log
+.vite
+coverage

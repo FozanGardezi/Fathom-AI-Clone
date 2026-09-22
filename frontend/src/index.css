@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+/* Semantic tokens. Components reference these rather than raw palette values,
+   so the whole surface can be retuned from one place. */
+@theme {
+  --color-ink: #0b1220;
+  --color-surface: #ffffff;
+  --color-muted: #64748b;
+  --color-brand: #4f46e5;
+
+  /* Page background, one step below --color-surface so raised panels read. */
+  --color-canvas: #f7f8fa;
+  /* Sidebar sits between canvas and surface: present, but never louder than
+     the content next to it. */
+  --color-rail: #fbfbfc;
+
+  /* Borders do the structural work here instead of shadows. `line` is the
+     default hairline; `line-strong` is for anything interactive. */
+  --color-line: #e8eaee;
+  --color-line-strong: #d6dae1;
+
+  --color-text-secondary: #55607a;
+  --color-text-tertiary: #8b93a5;
+
+  --color-brand-soft: #eef0fe;
+  --color-brand-hover: #4338ca;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  /* Tighter letter-spacing and antialiasing are most of what separates a
+     dense UI that reads well from one that feels cramped. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+/* Numerals line up in columns without needing a monospace face. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Only ever show focus rings for keyboard users - a mouse click on a button
+   should not light up. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
