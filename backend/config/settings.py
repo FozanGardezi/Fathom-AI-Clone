@@ -157,7 +157,10 @@ CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6380/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=DEBUG)
 
+_valid = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 LOG_LEVEL = env("LOG_LEVEL", default="INFO").upper()
+if LOG_LEVEL not in _valid:
+    LOG_LEVEL = "INFO"
 
 LOGGING = {
     "version": 1,
