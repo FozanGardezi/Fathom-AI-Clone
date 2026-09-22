@@ -12,7 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
     DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "fathom-ai-clone-eq1u-git-master-fozangardezis-projects.vercel.app"]),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", 
+        "fathom-ai-clone-eq1u-git-master-fozangardezis-projects.vercel.app"
+    "fathom-ai-clone-eq1u-dglex4k8v-fozangardezis-projects.vercel.app"]),
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:3000"]),
 )
 environ.Env.read_env(BASE_DIR / ".env")
