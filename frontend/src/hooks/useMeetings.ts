@@ -6,6 +6,7 @@
  * read `isLoading` / `isError` / `message` and never touch axios, status codes
  * or error shapes.
  */
+import { useEffect, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query'
 
@@ -54,6 +55,55 @@ export function useMeetings(params: ListMeetingsParams = {}): ApiQueryResult<Pag
       queryFn: ({ signal }) => listMeetings(params, signal),
     }),
   )
+}
+
+/** How early a scheduled call shows a join prompt, and how long past its start
+ *  it keeps showing one - a meeting nobody joined on time is still joinable. */
+const JOIN_LEAD_MINUTES = 15
+const JOIN_GRACE_MINUTES = 60
+
+/** Whether a Google Meet call is one the notetaker can join right now: either
+ *  already recording, or scheduled to start within the window around now. */
+function isJoinableNow(meeting: MeetingListItem, now: number): boolean {
+  if (meeting.platform !== 'google_meet') return false
+  if (meeting.status === 'recording') return true
+  if (meeting.status !== 'scheduled' || !meeting.scheduled_start) return false
+  const minutes = (new Date(meeting.scheduled_start).getTime() - now) / 60_000
+  return minutes <= JOIN_LEAD_MINUTES && minutes >= -JOIN_GRACE_MINUTES
+}
+
+/**
+ * Google Meet calls the notetaker can join at this moment.
+ *
+ * Two queries - the scheduled calls that are about to start, and the ones
+ * already recording - merged and filtered to the join window. The result
+ * drives the "live now" prompt; it is empty far more often than not, so the
+ * banner renders nothing rather than reserving space.
+ */
+export function useLiveNow(): { meetings: MeetingListItem[]; isPending: boolean } {
+  const scheduled = useMeetings({ status: 'scheduled', ordering: 'scheduled_start' })
+  const recording = useMeetings({ status: 'recording', ordering: 'scheduled_start' })
+
+  // A ticking clock rather than Date.now() in render: it keeps the check pure
+  // and, as a bonus, flips a scheduled call into the prompt when its start time
+  // arrives without waiting for a refetch.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const seen = new Set<string>()
+  const meetings = [
+    ...(recording.data?.results ?? []),
+    ...(scheduled.data?.results ?? []),
+  ].filter((meeting) => {
+    if (seen.has(meeting.id) || !isJoinableNow(meeting, now)) return false
+    seen.add(meeting.id)
+    return true
+  })
+
+  return { meetings, isPending: scheduled.isPending || recording.isPending }
 }
 
 export function useMeetingStats(): ApiQueryResult<MeetingStats> {
