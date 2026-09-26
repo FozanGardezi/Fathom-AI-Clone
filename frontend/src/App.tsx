@@ -6,6 +6,7 @@ import ActionItems from './pages/ActionItems'
 import Calendar from './pages/Calendar'
 import Highlights from './pages/Highlights'
 import Login from './pages/Login'
+import LiveMeeting from './pages/LiveMeeting'
 import MeetingDetail from './pages/MeetingDetail'
 import Meetings from './pages/Meetings'
 import Overview from './pages/Overview'
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/meetings/:id" element={<MeetingDetail />} />
+        <Route path="/meetings/:id/live" element={<LiveMeeting />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/highlights" element={<Highlights />} />
         <Route path="/action-items" element={<ActionItems />} />
