@@ -1,59 +1,68 @@
-import { useCallback, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
+import {
+  ApiError,
+  beginCalendarConnect,
+  disconnectCalendar,
+  errorMessage,
+  getCalendarConnection,
+  queryKeys,
+  syncCalendar,
+} from '../lib/api'
+import type { CalendarConnection, CalendarSyncResult } from '../lib/api'
 
 /**
- * The calendar connection, stubbed.
+ * The Google Calendar link.
  *
- * There is no OAuth flow behind this and no field on the backend to hold the
- * result, so the state lives in localStorage. That is honest about what it is:
- * a per-browser flag, not an account-level fact. When a real integration
- * lands, the shape of this hook is what the UI already consumes - only the
- * bodies change, to a POST that starts the flow and a field on the user.
+ * Backed by the API rather than browser storage: whether an account has
+ * granted Google access is a fact about the account, not about the browser
+ * someone happens to be using.
+ *
+ * Connecting is a full-page redirect, not a popup. Google's consent screen
+ * blocks popups in plenty of configurations, and a redirect is the flow their
+ * own documentation assumes.
  */
-const STORAGE_KEY = 'fathom.calendar.provider'
-
-export type CalendarStatus = 'disconnected' | 'connecting' | 'connected'
-export const PROVIDER_NAME = 'Google Calendar'
-
-function read(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === 'google'
-  } catch {
-    // Private browsing and blocked storage both throw rather than return null.
-    return false
-  }
-}
-
 export function useCalendarConnection() {
-  // Read once, lazily. `read` swallows the throw that blocked storage raises,
-  // so this is safe as an initial value and saves a second render.
-  const [status, setStatus] = useState<CalendarStatus>(() =>
-    read() ? 'connected' : 'disconnected',
-  )
+  const queryClient = useQueryClient()
 
-  const connect = useCallback(() => {
-    setStatus('connecting')
-    // Stands in for the round trip to the provider's consent screen. Real
-    // enough that the UI has to handle a pending state, which it would.
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, 'google')
-      } catch {
-        // Nothing to do: the session still shows as connected, it just will
-        // not survive a reload.
-      }
-      setStatus('connected')
-    }, 1200)
-    return () => clearTimeout(timer)
-  }, [])
+  const connection = useQuery<CalendarConnection, ApiError>({
+    queryKey: queryKeys.workspace.calendarConnection,
+    queryFn: ({ signal }) => getCalendarConnection(signal),
+  })
 
-  const disconnect = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Ignored for the same reason as above.
-    }
-    setStatus('disconnected')
-  }, [])
+  const connect = useMutation<{ authorization_url: string }, ApiError, void>({
+    mutationFn: beginCalendarConnect,
+    onSuccess: ({ authorization_url }) => {
+      // Leaves the app entirely; the API brings the browser back afterwards.
+      window.location.assign(authorization_url)
+    },
+  })
 
-  return { status, connect, disconnect, provider: PROVIDER_NAME }
+  const sync = useMutation<CalendarSyncResult, ApiError, void>({
+    mutationFn: syncCalendar,
+    onSuccess: () => {
+      // Synced events are meetings now, so everything that lists meetings is
+      // stale - the dashboard, the calendar grid and the counts alike.
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspace.all })
+    },
+  })
+
+  const disconnect = useMutation<CalendarConnection, ApiError, void>({
+    mutationFn: disconnectCalendar,
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.workspace.calendarConnection, state)
+    },
+  })
+
+  return {
+    connection: connection.data,
+    isLoading: connection.isPending,
+    isError: connection.isError,
+    message: errorMessage(connection.error),
+    refetch: connection.refetch,
+    connect,
+    sync,
+    disconnect,
+  }
 }
