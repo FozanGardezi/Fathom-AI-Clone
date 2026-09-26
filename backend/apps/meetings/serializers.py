@@ -54,7 +54,7 @@ class ParticipantSerializer(serializers.ModelSerializer):
 class MeetingSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = MeetingSummary
-        fields = ["id", "template", "status", "summary", "generated_at"]
+        fields = ["id", "template", "status", "summary", "topics", "decisions", "generated_at"]
 
 
 class ActionItemSerializer(serializers.ModelSerializer):
@@ -96,9 +96,11 @@ class HighlightSerializer(serializers.ModelSerializer):
             "end_ms",
             "timestamp",
             "duration_ms",
+            "auto_generated",
             "created_by",
             "created_at",
         ]
+        read_only_fields = ["auto_generated"]
 
 
 class MeetingListSerializer(serializers.ModelSerializer):
@@ -120,6 +122,7 @@ class MeetingListSerializer(serializers.ModelSerializer):
             "platform",
             "status",
             "language",
+            "meeting_url",
             "owner",
             "scheduled_start",
             "started_at",
@@ -163,6 +166,7 @@ class MeetingDetailSerializer(serializers.ModelSerializer):
     highlights = HighlightSerializer(many=True, read_only=True)
 
     summary = serializers.SerializerMethodField()
+    summaries = serializers.SerializerMethodField()
     topics = serializers.SerializerMethodField()
     decisions = serializers.SerializerMethodField()
 
@@ -184,6 +188,7 @@ class MeetingDetailSerializer(serializers.ModelSerializer):
             "is_live",
             "participants",
             "summary",
+            "summaries",
             "topics",
             "decisions",
             "action_items",
@@ -207,6 +212,15 @@ class MeetingDetailSerializer(serializers.ModelSerializer):
     def get_summary(self, meeting):
         summary = self._primary_summary(meeting)
         return MeetingSummarySerializer(summary).data if summary else None
+
+    def get_summaries(self, meeting):
+        """Every ready summary, one per template, newest first.
+
+        Reads the view's `ready_summaries` prefetch so the template switcher
+        can move between already-generated write-ups without a query per row.
+        """
+        summaries = getattr(meeting, "ready_summaries", None) or []
+        return MeetingSummarySerializer(summaries, many=True).data
 
     def get_topics(self, meeting):
         summary = self._primary_summary(meeting)
@@ -406,3 +420,96 @@ class ActionItemWithMeetingSerializer(ActionItemSerializer):
 
     class Meta(ActionItemSerializer.Meta):
         fields = [*ActionItemSerializer.Meta.fields, "meeting"]
+
+# ---------------------------------------------------------------- live calls
+
+class ParticipantWriteSerializer(serializers.ModelSerializer):
+    """Adding someone to a call that is being recorded."""
+
+    class Meta:
+        model = Participant
+        fields = ["id", "display_name", "email", "role"]
+        read_only_fields = ["id"]
+
+
+class TranscriptSegmentWriteSerializer(serializers.ModelSerializer):
+    """One utterance, appended while the call is running.
+
+    `speaker` is a participant of this meeting; the view supplies the meeting,
+    so the cross-meeting foreign key cannot be violated from here.
+    """
+
+    speaker = serializers.PrimaryKeyRelatedField(
+        queryset=Participant.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = TranscriptSegment
+        fields = ["id", "speaker", "speaker_label", "start_ms", "end_ms", "text", "confidence"]
+        read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        if attrs.get("end_ms", 0) < attrs.get("start_ms", 0):
+            raise serializers.ValidationError(
+                {"end_ms": "A segment cannot end before it starts."}
+            )
+        meeting = self.context.get("meeting")
+        speaker = attrs.get("speaker")
+        # Mirrors the database's composite foreign key, which is deferred and
+        # would otherwise surface as a 500 at commit rather than a 400 here.
+        if speaker and meeting and speaker.meeting_id != meeting.pk:
+            raise serializers.ValidationError(
+                {"speaker": "Speaker must be a participant in this meeting."}
+            )
+        return attrs
+
+
+class StartLiveMeetingSerializer(serializers.Serializer):
+    """What it takes to begin recording: a title, and who is in the room."""
+
+    title = serializers.CharField(max_length=255)
+    platform = serializers.ChoiceField(
+        choices=Meeting.Platform.choices, default=Meeting.Platform.OTHER
+    )
+    language = serializers.CharField(max_length=16, default="en")
+    participants = ParticipantWriteSerializer(many=True, required=False)
+
+    def validate_participants(self, participants):
+        emails = [p["email"].lower() for p in participants if p.get("email")]
+        if len(emails) != len(set(emails)):
+            raise serializers.ValidationError("Two participants share an email address.")
+        return participants
+
+
+class GenerateSummarySerializer(serializers.Serializer):
+    """Which template to (re)generate a summary under.
+
+    `custom` is not offered here: it has no extraction rules of its own and
+    would only ever mirror the general write-up, so asking for it is a mistake
+    worth rejecting rather than silently answering with something else.
+    """
+
+    template = serializers.ChoiceField(
+        choices=[
+            (value, label)
+            for value, label in MeetingSummary.Template.choices
+            if value != MeetingSummary.Template.CUSTOM
+        ]
+    )
+
+
+class CalendarConnectionSerializer(serializers.Serializer):
+    """The calendar's state, as the UI needs to render it.
+
+    `is_configured` and `is_connected` are separate on purpose: a server with
+    no OAuth client and a user who has not connected yet look the same from
+    the outside but need different words.
+    """
+
+    provider = serializers.CharField()
+    provider_label = serializers.CharField()
+    is_configured = serializers.BooleanField()
+    is_connected = serializers.BooleanField()
+    account_email = serializers.EmailField(allow_blank=True)
+    last_synced_at = serializers.DateTimeField(allow_null=True)
+    last_sync_error = serializers.CharField(allow_blank=True)
