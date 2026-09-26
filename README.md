@@ -316,6 +316,8 @@ Copy `.env.example` to `.env`. Nothing needs setting to run locally.
 | `REDIS_URL` | Celery broker and result backend |
 | `VITE_API_URL` | defaults to `/api`; inlined at build time |
 | `DEMO_PASSWORD` | demo account password; required when seeding a remote database |
+| `GOOGLE_CLIENT_ID` `GOOGLE_CLIENT_SECRET` | enable Google Calendar sync; blank means "not set up" |
+| `GOOGLE_REDIRECT_URI` `FRONTEND_URL` | OAuth callback and where to return the browser |
 
 ### Database
 
@@ -387,8 +389,10 @@ Honest list of what is not finished.
   API client filters the page it fetched client-side — it cannot see matches beyond the
   first page. It is a stopgap with the final signature; switching it over is deleting one
   marked block once the backend supports `?search=`.
-- **Calendar OAuth is stubbed.** The connect flow is real UI over a `localStorage` flag.
-  `useCalendarConnection` has the shape a real integration would expose.
+- **Synced calendar events have no transcript.** A Google Calendar event carries a
+  title, a time, a link and an invite list — never a recording. Past events therefore
+  import as meetings with participants and timings but no transcript, summary, action
+  items or highlights, and the UI says so. Record one with the live feature to get those.
 - **Share copies the URL.** There is no sharing endpoint.
 - **No sign-out in the UI.** `useSession().signOut` exists; the avatar menu has no dropdown.
 - **No recordings.** No audio or video is stored; playback is simulated, and the UI says so.
