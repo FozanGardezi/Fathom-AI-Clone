@@ -10,6 +10,7 @@ and queried independently of the call itself.
 """
 
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -472,6 +473,11 @@ class Highlight(models.Model):
     start_ms = models.PositiveIntegerField()
     end_ms = models.PositiveIntegerField()
 
+    # Whether the extractor made this on finish, as opposed to a person marking
+    # it by hand. Finishing re-derives the automatic ones from the current
+    # transcript, but must never wipe a moment someone flagged mid-call.
+    auto_generated = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -520,3 +526,64 @@ class Highlight(models.Model):
             "%s: %s" % (s.speaker.display_name, s.text) if s.speaker else s.text
             for s in self.segments
         )
+
+
+class CalendarConnection(models.Model):
+    """A user's link to an external calendar.
+
+    Holds the OAuth tokens rather than putting them on the user, because a
+    person may eventually connect more than one calendar and because tokens
+    have their own lifecycle - they expire, refresh, and get revoked
+    independently of the account.
+    """
+
+    class Provider(models.TextChoices):
+        GOOGLE = "google", "Google Calendar"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="calendar_connections",
+    )
+    provider = models.CharField(max_length=32, choices=Provider.choices, default=Provider.GOOGLE)
+
+    # The account that was actually authorised, which is not necessarily the
+    # address they signed up with.
+    account_email = models.EmailField(blank=True)
+
+    access_token = models.TextField()
+    # Google only returns a refresh token on first consent, so an existing one
+    # has to be preserved across re-authorisations rather than overwritten
+    # with the empty string.
+    refresh_token = models.TextField(blank=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+    scope = models.TextField(blank=True)
+
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_sync_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "calendar_connections"
+        ordering = ["-created_at"]
+        constraints = [
+            # One connection per provider per person. Reconnecting updates the
+            # tokens in place instead of leaving a trail of dead ones.
+            models.UniqueConstraint(
+                fields=["user", "provider"], name="calendar_one_connection_per_provider"
+            ),
+        ]
+
+    def __str__(self):
+        return "%s for %s" % (self.get_provider_display(), self.user_id)
+
+    @property
+    def is_expired(self):
+        """Whether the access token needs refreshing before the next call."""
+        if not self.token_expires_at:
+            return False
+        # A minute of slack, so a token does not expire mid-request.
+        return timezone.now() >= self.token_expires_at - timedelta(seconds=60)
