@@ -1,16 +1,38 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import type { Meeting } from '../../../lib/api'
 import { PLATFORM_LABELS, formatDateTime, formatDuration, pluralize } from '../../../lib/format'
 import Button from '../../ui/Button'
 import Icon from '../../ui/Icon'
+import { Spinner } from '../../ui/LoadingState'
 import StatusPill from '../StatusPill'
 import ParticipantAvatars from './ParticipantAvatars'
+import { useStartMeetingRecording } from '../../../hooks/useLiveMeeting'
 import { cx, focusRing } from '../../../lib/cx'
 
 export default function MeetingHeader({ meeting }: { meeting: Meeting }) {
   const [copied, setCopied] = useState(false)
+  const navigate = useNavigate()
+  const start = useStartMeetingRecording()
+
+  // A Google Meet call that has not been recorded yet can be joined: the
+  // notetaker connects to it and the live page takes over. A call already
+  // recording is resumed straight to the live page.
+  const canJoin = meeting.platform === 'google_meet' && meeting.status !== 'ready'
+
+  function join() {
+    if (meeting.status === 'recording') {
+      navigate(`/meetings/${meeting.id}/live`)
+      return
+    }
+    if (meeting.meeting_url) {
+      window.open(meeting.meeting_url, '_blank', 'noopener,noreferrer')
+    }
+    start.mutate(meeting.id, {
+      onSuccess: () => navigate(`/meetings/${meeting.id}/live`),
+    })
+  }
 
   /**
    * There is no sharing endpoint yet, so Share does the one useful thing it
@@ -69,6 +91,28 @@ export default function MeetingHeader({ meeting }: { meeting: Meeting }) {
               {pluralize(meeting.participants.length, 'participant')}
             </span>
           </div>
+
+          {canJoin && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={join}
+              disabled={start.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {start.isPending ? (
+                <>
+                  <Spinner className="size-4" />
+                  Connecting…
+                </>
+              ) : (
+                <>
+                  <Icon name="meetings" className="size-4" />
+                  {meeting.status === 'recording' ? 'Resume notes' : 'Join & take notes'}
+                </>
+              )}
+            </Button>
+          )}
 
           <Button size="sm" onClick={share}>
             <Icon name={copied ? 'action-items' : 'plus'} className="size-4" />
