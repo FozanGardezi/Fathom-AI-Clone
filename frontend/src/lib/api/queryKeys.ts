@@ -19,6 +19,7 @@ export const queryKeys = {
     actionItems: (params: ListActionItemsParams = {}) =>
       ['workspace', 'action-items', params] as const,
     calendar: (params: CalendarParams) => ['workspace', 'calendar', params] as const,
+    calendarConnection: ['workspace', 'calendar-connection'] as const,
   },
 
   meetings: {

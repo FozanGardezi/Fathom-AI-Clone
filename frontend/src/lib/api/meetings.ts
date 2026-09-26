@@ -8,9 +8,12 @@
 import { api } from './client'
 import type {
   ActionItem,
+  AddParticipantInput,
+  AppendSegmentInput,
   ActionItemWithMeeting,
   CalendarParams,
   CreateHighlightInput,
+  GenerateSummaryInput,
   Highlight,
   HighlightWithMeeting,
   ListActionItemsParams,
@@ -18,8 +21,11 @@ import type {
   Meeting,
   MeetingListItem,
   MeetingStats,
+  MeetingSummary,
   PageParams,
   Paginated,
+  Participant,
+  StartLiveMeetingInput,
   TranscriptSegment,
   UpdateActionItemInput,
 } from './types'
@@ -65,6 +71,59 @@ export async function listActionItems(
   signal?: AbortSignal,
 ): Promise<Paginated<ActionItemWithMeeting>> {
   const { data } = await api.get(`${V1}/action-items/`, { params, signal })
+  return data
+}
+
+// ------------------------------------------------------------------ live
+
+/** POST /api/v1/meetings/live/ - opens a recording and returns the meeting
+ *  already in `recording` state, cast included. */
+export async function startLiveMeeting(input: StartLiveMeetingInput): Promise<Meeting> {
+  const { data } = await api.post(`${V1}/meetings/live/`, input)
+  return data
+}
+
+/** POST /api/v1/meetings/{id}/transcript/ - append one utterance. */
+export async function appendSegment(
+  meetingId: string,
+  input: AppendSegmentInput,
+): Promise<TranscriptSegment> {
+  const { data } = await api.post(`${V1}/meetings/${meetingId}/transcript/`, input)
+  return data
+}
+
+/** POST /api/v1/meetings/{id}/participants/ - someone joined late. */
+export async function addParticipant(
+  meetingId: string,
+  input: AddParticipantInput,
+): Promise<Participant> {
+  const { data } = await api.post(`${V1}/meetings/${meetingId}/participants/`, input)
+  return data
+}
+
+/** POST /api/v1/meetings/{id}/start/ - connect the notetaker to a meeting that
+ *  already exists (typically a calendar-synced one), moving it into recording
+ *  and returning the full detail shape. */
+export async function startMeetingRecording(meetingId: string): Promise<Meeting> {
+  const { data } = await api.post(`${V1}/meetings/${meetingId}/start/`, {})
+  return data
+}
+
+/** POST /api/v1/meetings/{id}/finish/ - close the recording and derive the
+ *  summary, decisions, action items and highlights from the transcript. */
+export async function finishLiveMeeting(meetingId: string): Promise<Meeting> {
+  const { data } = await api.post(`${V1}/meetings/${meetingId}/finish/`, {})
+  return data
+}
+
+/** POST /api/v1/meetings/{id}/summaries/ - (re)generate the summary under one
+ *  template. Returns just that summary; the caller refetches the meeting to
+ *  pick up the new row alongside the others. */
+export async function generateSummary(
+  meetingId: string,
+  input: GenerateSummaryInput,
+): Promise<MeetingSummary> {
+  const { data } = await api.post(`${V1}/meetings/${meetingId}/summaries/`, input)
   return data
 }
 

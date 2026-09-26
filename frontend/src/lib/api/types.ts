@@ -52,6 +52,8 @@ export type MeetingSummary = {
   template: SummaryTemplate
   status: SummaryStatus
   summary: string
+  topics: string[]
+  decisions: string[]
   generated_at: string | null
 }
 
@@ -75,6 +77,8 @@ export type Highlight = {
   end_ms: number
   timestamp: string
   duration_ms: number
+  /** True when the extractor made it on finish, false when a person flagged it. */
+  auto_generated: boolean
   created_by: User | null
   created_at: string
 }
@@ -114,6 +118,8 @@ export type MeetingListItem = {
   platform: MeetingPlatform
   status: MeetingStatus
   language: string
+  /** The conferencing link (e.g. the Google Meet URL), when the meeting has one. */
+  meeting_url: string
   owner: User
   scheduled_start: string | null
   started_at: string | null
@@ -126,6 +132,29 @@ export type MeetingListItem = {
   summary_excerpt: string
   created_at: string
   updated_at: string
+}
+
+/** The calendar link's state.
+ *
+ *  `is_configured` and `is_connected` are separate: a server with no OAuth
+ *  client and a user who simply has not connected yet look alike from outside
+ *  but need different words. */
+export type CalendarConnection = {
+  provider: string
+  provider_label: string
+  is_configured: boolean
+  is_connected: boolean
+  account_email: string
+  last_synced_at: string | null
+  last_sync_error: string
+}
+
+export type CalendarSyncResult = {
+  created: number
+  updated: number
+  skipped: number
+  total: number
+  connection: CalendarConnection
 }
 
 /** Totals across every meeting the caller can see. */
@@ -152,7 +181,10 @@ export type Meeting = {
   duration_seconds: number | null
   is_live: boolean
   participants: Participant[]
+  /** The newest ready summary (any template), kept for the list-card excerpt. */
   summary: MeetingSummary | null
+  /** Every ready summary, one per template - what the template switcher reads. */
+  summaries: MeetingSummary[]
   topics: string[]
   decisions: string[]
   action_items: ActionItem[]
@@ -198,9 +230,41 @@ export type UpdateActionItemInput = {
   owner?: string | null
 }
 
+export type StartLiveMeetingInput = {
+  title: string
+  platform?: MeetingPlatform
+  language?: string
+  participants?: { display_name: string; email?: string; role?: ParticipantRole }[]
+}
+
+export type AppendSegmentInput = {
+  /** A participant of this meeting, or null when the voice is unattributed. */
+  speaker?: string | null
+  speaker_label?: string
+  /** Milliseconds from the start of the recording. */
+  start_ms: number
+  end_ms: number
+  text: string
+  confidence?: number | null
+}
+
+export type AddParticipantInput = {
+  display_name: string
+  email?: string
+  role?: ParticipantRole
+}
+
 export type CreateHighlightInput = {
   title: string
   description?: string
   start_ms: number
   end_ms: number
+}
+
+/** Which template to (re)generate a summary under. `custom` has no rules of its
+ *  own and is rejected by the server, so it is left out here. */
+export type GenerateSummaryTemplate = Exclude<SummaryTemplate, 'custom'>
+
+export type GenerateSummaryInput = {
+  template: GenerateSummaryTemplate
 }

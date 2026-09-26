@@ -12,7 +12,17 @@ export { queryKeys } from './queryKeys'
 
 export { fetchHealth, fetchMe, login, logout, register } from './auth'
 export {
+  beginCalendarConnect,
+  disconnectCalendar,
+  getCalendarConnection,
+  syncCalendar,
+} from './calendar'
+export {
+  addParticipant,
+  appendSegment,
   createHighlight,
+  finishLiveMeeting,
+  generateSummary,
   getActionItems,
   getHighlights,
   getMeeting,
@@ -23,6 +33,8 @@ export {
   listMeetings,
   listMeetingsInRange,
   searchMeetings,
+  startLiveMeeting,
+  startMeetingRecording,
   updateActionItem,
 } from './meetings'
 
