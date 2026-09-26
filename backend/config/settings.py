@@ -145,6 +145,24 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
+# --------------------------------------------------------- google calendar
+
+# An OAuth client from a Google Cloud project. Until both are set the calendar
+# API reports itself unconfigured and the UI says so, rather than sending
+# anyone to a broken consent screen. See apps/meetings/google_calendar.py.
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+
+# Must match a redirect URI registered on that OAuth client, exactly. It
+# points at this API, not the frontend - the backend does the code exchange so
+# the client secret never reaches a browser.
+GOOGLE_REDIRECT_URI = env(
+    "GOOGLE_REDIRECT_URI", default="http://localhost:8000/api/v1/calendar/callback/"
+)
+
+# Where to send the browser once the exchange is done.
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Fathom Clone API",
     "DESCRIPTION": "Meeting recording, transcription and AI notes.",

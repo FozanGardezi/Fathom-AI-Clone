@@ -10,3 +10,7 @@ celery==5.4.0
 redis==5.2.1
 whitenoise==6.9.0
 gunicorn==23.0.0
+# Trusted CA bundle for outbound HTTPS (Google Calendar). Python builds that
+# ship without one - the macOS python.org installer among them - otherwise
+# fail certificate verification on every outbound call.
+certifi==2026.7.22
