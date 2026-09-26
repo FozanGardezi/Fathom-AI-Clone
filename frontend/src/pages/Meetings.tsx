@@ -1,5 +1,9 @@
+import { useState } from 'react'
+
 import Button from '../components/ui/Button'
 import Icon from '../components/ui/Icon'
+import LiveNowBanner from '../components/live/LiveNowBanner'
+import NewMeetingDialog from '../components/live/NewMeetingDialog'
 import MeetingSection from '../components/meetings/MeetingSection'
 import MeetingStats from '../components/meetings/MeetingStats'
 import Skeleton from '../components/ui/Skeleton'
@@ -16,6 +20,7 @@ import { useSession } from '../hooks/useSession'
  */
 export default function Meetings() {
   const session = useSession()
+  const [isStarting, setIsStarting] = useState(false)
 
   // Two filtered queries rather than one list split client-side: "upcoming"
   // and "recent" are genuinely different questions, and splitting a page of
@@ -37,6 +42,8 @@ export default function Meetings() {
           Here's what's happened across your meetings.
         </p>
       </header>
+
+      <LiveNowBanner />
 
       <MeetingStats />
 
@@ -67,12 +74,14 @@ export default function Meetings() {
         emptyTitle="No meetings yet"
         emptyDescription="Once a call has been recorded and processed, it will show up here with its summary."
         action={
-          <Button variant="secondary" size="sm">
+          <Button variant="primary" size="sm" onClick={() => setIsStarting(true)}>
             <Icon name="plus" className="size-4" />
             New meeting
           </Button>
         }
       />
+
+      {isStarting && <NewMeetingDialog onClose={() => setIsStarting(false)} />}
     </>
   )
 }
